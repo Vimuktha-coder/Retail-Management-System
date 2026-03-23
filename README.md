@@ -53,6 +53,10 @@ GEMINI_API_KEY=your-google-gemini-key
 python app.py
 ```
 *The app will automatically start at `http://127.0.0.1:5000`*
+id:admin@retail.com
+pass:password123
+id:staff@retail.com
+pass:password123
 
 ## 🌩️ Cloud Deployment (Render.com)
 
