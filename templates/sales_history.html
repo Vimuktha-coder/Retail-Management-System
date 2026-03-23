@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Sales History{% endblock %}
+{% block page_title %}Sales History{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Recent Transactions</h2>
+        <div style="display: flex; gap: 1rem;">
+            <a href="{{ url_for('sales.export_csv') }}" class="btn btn-secondary">Export CSV</a>
+            <a href="{{ url_for('sales.pos') }}" class="btn btn-primary">+ New Sale</a>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Sale ID</th>
+                    <th>Date</th>
+                    <th>Items Sold</th>
+                    <th>Total Amount</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in sales %}
+                <tr>
+                    <td>#SALE-{{ "%04d"|format(sale.id) }}</td>
+                    <td>{{ sale.created_at[:16].replace('T', ' ') }}</td>
+                    <td>
+                        <ul style="margin: 0; padding-left: 1rem; font-size: 0.85rem;">
+                            {% for item in sale.sale_items %}
+                            <li>{{ item.products.name }} (x{{ item.quantity }})</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td style="font-weight: 600;">₹{{ "%.2f"|format(sale.total_amount) }}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="printInvoice({{ sale.id }})">Print Invoice</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem;">No sales history found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function printInvoice(saleId) {
+        // Placeholder for PDF generation
+        alert(`Exporting invoice for Sale ID ${saleId} as PDF... \n(This feature can be integrated with a library like html2pdf.js)`);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Point of Sale (POS){% endblock %}
+{% block page_title %}Point of Sale{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; height: calc(100vh - 150px);">
+
+    <!-- Product Selection Area -->
+    <div class="card" style="display: flex; flex-direction: column; overflow: hidden; margin-bottom: 0;">
+        <div class="card-header">
+            <h2 class="card-title">Select Products</h2>
+            <input type="text" id="posSearch" class="form-control" placeholder="Search by name or SKU..." style="max-width: 300px;">
+        </div>
+        <div class="pos-products" style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; padding: 1rem 0;">
+            {% for prod in products %}
+            <div class="pos-item card" style="cursor: pointer; padding: 1rem; text-align: center; border: 1px solid var(--border-color); box-shadow: none;" 
+                 onclick="addToCart({{ prod.id }}, '{{ prod.name }}', {{ prod.price }}, {{ prod.inventory.stock_level if prod.inventory else 0 }})"
+                 data-search="{{ prod.name | lower }} {{ prod.sku | lower }}">
+                <div style="font-weight: 600; margin-bottom: 0.5rem; height: 40px; overflow: hidden;">{{ prod.name }}</div>
+                <div style="color: var(--primary); font-weight: 700;">₹{{ "%.2f"|format(prod.price) }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Stock: {{ prod.inventory.stock_level if prod.inventory else 0 }}</div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No products available in stock.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Cart & Checkout Area -->
+    <div class="card" style="display: flex; flex-direction: column; margin-bottom: 0;">
+        <div class="card-header">
+            <h2 class="card-title">Current Cart</h2>
+            <button class="btn btn-secondary btn-sm" onclick="clearCart()">Clear</button>
+        </div>
+        
+        <div id="cartItems" style="flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+            <div id="emptyCartMsg" style="text-align: center; color: var(--text-muted); padding: 2rem;">Cart is empty.</div>
+            <!-- Cart Items rendered here by JS -->
+        </div>
+        
+        <div style="padding-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
+                <span>Total:</span>
+                <span id="cartTotal">₹0.00</span>
+            </div>
+            <button id="checkoutBtn" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.125rem;" onclick="processCheckout()" disabled>
+                Checkout
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    let cart = [];
+
+    // Search filter
+    document.getElementById('posSearch').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('.pos-item').forEach(item => {
+            const searchData = item.getAttribute('data-search');
+            item.style.display = searchData.includes(query) ? 'block' : 'none';
+        });
+    });
+
+    function addToCart(id, name, price, stock) {
+        if (stock <= 0) {
+            alert('Out of stock!');
+            return;
+        }
+
+        const existingItem = cart.find(i => i.product_id === id);
+        if (existingItem) {
+            if (existingItem.quantity >= stock) {
+                alert(`Cannot add more. Only ${stock} in stock.`);
+                return;
+            }
+            existingItem.quantity++;
+        } else {
+            cart.push({ product_id: id, name, price, quantity: 1, max_stock: stock });
+        }
+        
+        renderCart();
+    }
+
+    function removeFromCart(id) {
+        cart = cart.filter(i => i.product_id !== id);
+        renderCart();
+    }
+
+    function updateQty(id, delta) {
+        const item = cart.find(i => i.product_id === id);
+        if (item) {
+            const newQty = item.quantity + delta;
+            if (newQty <= 0) {
+                removeFromCart(id);
+            } else if (newQty > item.max_stock) {
+                alert(`Cannot set quantity above available stock (${item.max_stock}).`);
+            } else {
+                item.quantity = newQty;
+                renderCart();
+            }
+        }
+    }
+
+    function clearCart() {
+        if (cart.length === 0) return;
+        if(confirm('Clear entire cart?')) {
+            cart = [];
+            renderCart();
+        }
+    }
+
+    function renderCart() {
+        const cartItemsDiv = document.getElementById('cartItems');
+        const totalSpan = document.getElementById('cartTotal');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+
+        if (cart.length === 0) {
+            cartItemsDiv.innerHTML = '<div id="emptyCartMsg" style="text-align: center; color: var(--text-muted); padding: 2rem;">Cart is empty.</div>';
+            totalSpan.innerText = '₹0.00';
+            checkoutBtn.disabled = true;
+            return;
+        }
+
+        cartItemsDiv.innerHTML = '';
+        
+        let total = 0;
+
+        cart.forEach(item => {
+            const itemTotal = item.quantity * item.price;
+            total += itemTotal;
+
+            const div = document.createElement('div');
+            div.style = "display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px dashed var(--border-color);";
+            div.innerHTML = `
+                <div style="flex: 2;">
+                    <div style="font-weight: 500;">${item.name}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">₹${item.price.toFixed(2)} x ${item.quantity}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.1rem 0.4rem; font-size: 0.8rem;" onclick="updateQty(${item.product_id}, -1)">-</button>
+                    <span>${item.quantity}</span>
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.1rem 0.4rem; font-size: 0.8rem;" onclick="updateQty(${item.product_id}, 1)">+</button>
+                </div>
+                <div style="width: 60px; text-align: right; font-weight: 600;">₹${itemTotal.toFixed(2)}</div>
+            `;
+            cartItemsDiv.appendChild(div);
+        });
+
+        totalSpan.innerText = `₹${total.toFixed(2)}`;
+        checkoutBtn.disabled = false;
+    }
+
+    async function processCheckout() {
+        if (cart.length === 0) return;
+        
+        const btn = document.getElementById('checkoutBtn');
+        btn.disabled = true;
+        btn.innerText = 'Processing...';
+
+        try {
+            const res = await fetch('/sales/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ cart })
+            });
+            const result = await res.json();
+            
+            if (res.ok && result.success) {
+                alert(`Checkout successful! Sale ID: ${result.sale_id}`);
+                cart = [];
+                renderCart();
+                // Optionally refresh to update inventory logic visually
+                window.location.reload(); 
+            } else {
+                alert(result.error || 'Checkout failed');
+                btn.disabled = false;
+                btn.innerText = 'Checkout';
+            }
+        } catch (err) {
+            console.error(err);
+            alert('An error occurred during checkout.');
+            btn.disabled = false;
+            btn.innerText = 'Checkout';
+        }
+    }
+</script>
+{% endblock %}

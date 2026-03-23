@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Manager | {% block title %}{% endblock %}</title>
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Retail Manager</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <i class="icon">📊</i> Dashboard
+                    </a></li>
+                    <li><a href="{{ url_for('inventory.index') }}" class="{% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
+                        <i class="icon">📦</i> Inventory
+                    </a></li>
+                    {% if session.get('role') == 'Admin' %}
+                    <li><a href="{{ url_for('procurement.index') }}" class="{% if request.endpoint and 'procurement' in request.endpoint %}active{% endif %}">
+                        <i class="icon">🚚</i> Procurement
+                    </a></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('sales.pos') }}" class="{% if request.endpoint and 'sales' in request.endpoint %}active{% endif %}">
+                        <i class="icon">💳</i> Sales (POS)
+                    </a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('auth.logout') }}" class="logout-btn">
+                    <i class="icon">🚪</i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+                <div class="header-user">
+                    <span>{{ session.get('user_email', 'Guest') }} <small style="color:var(--text-muted);">({{ session.get('role', 'User') }})</small></span>
+                    <div class="avatar">{{ session.get('user_email', 'U')[0] | upper }}</div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    <div class="flash-container">
+                      {% for category, message in messages %}
+                        <div class="flash-alert alert-{{ category }}">{{ message }}</div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Chatbot Widget Placeholder -->
+    <div class="chat-widget closed" id="chatWidget">
+        <div class="chat-header" id="chatHeader">
+            <span>AI Assistant</span>
+            <button id="toggleChat">^</button>
+        </div>
+        <div class="chat-body">
+            <div class="messages" id="chatMessages">
+                <div class="message ai">Hi! How can I help you today?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask about stock, sales...">
+                <button id="sendChat">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

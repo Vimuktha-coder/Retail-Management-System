@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Analytics{% endblock %}
+{% block page_title %}Overview Dashboard{% endblock %}
+
+{% block content %}
+<!-- Dashboard Core Stats -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="card" style="margin-bottom: 0; border-left: 4px solid var(--primary);">
+        <div style="color: var(--text-muted); font-size: 0.875rem; font-weight: 600; text-transform: uppercase;">Total Products</div>
+        <div style="font-size: 2rem; font-weight: 700; margin-top: 0.5rem; color: var(--text-main);">{{ stats.total_products if stats else 0 }}</div>
+    </div>
+    <div class="card" style="margin-bottom: 0; border-left: 4px solid var(--secondary);">
+        <div style="color: var(--text-muted); font-size: 0.875rem; font-weight: 600; text-transform: uppercase;">Today's Sales</div>
+        <div style="font-size: 2rem; font-weight: 700; margin-top: 0.5rem; color: var(--text-main);">₹{{ "%.2f"|format(stats.today_sales if stats else 0.00) }}</div>
+    </div>
+    <div class="card" style="margin-bottom: 0; border-left: 4px solid var(--accent);">
+        <div style="color: var(--text-muted); font-size: 0.875rem; font-weight: 600; text-transform: uppercase;">Low Stock Items</div>
+        <div style="font-size: 2rem; font-weight: 700; margin-top: 0.5rem; color: var(--text-main);">{{ stats.low_stock if stats else 0 }}</div>
+    </div>
+    <div class="card" style="margin-bottom: 0; border-left: 4px solid #8B5CF6;">
+        <div style="color: var(--text-muted); font-size: 0.875rem; font-weight: 600; text-transform: uppercase;">Pending POs</div>
+        <div style="font-size: 2rem; font-weight: 700; margin-top: 0.5rem; color: var(--text-main);">{{ stats.pending_pos if stats else 0 }}</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Sales Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Recent Sales Trend</h2>
+        </div>
+        <div style="height: 300px; display: flex; align-items: center; justify-content: center; background: #F9FAFB; border-radius: 8px;">
+            <canvas id="salesChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Quick Alerts / Notifications -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Alerts & Notifications</h2>
+        </div>
+        <div>
+            {% if alerts and alerts|length > 0 %}
+                {% for alert in alerts %}
+                <div style="padding: 1rem; border-left: 3px solid var(--accent); background: #FEF3C7; margin-bottom: 0.75rem; border-radius: 4px; font-size: 0.875rem;">
+                    <strong>Low Stock:</strong> {{ alert.name }} (Only {{ alert.stock_level }} left)
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">No new alerts.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('salesChart');
+        if (ctx) {
+            // Mock data for sales trend chart (In full version, this is passed dynamically via Jinja)
+            const salesData = {{ sales_chart_data | tojson | default('[]') }}; 
+            const labels = salesData.length ? salesData.map(d => d.date) : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const dataTotals = salesData.length ? salesData.map(d => d.total) : [120, 300, 150, 400, 230, 500, 450];
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sales (₹)',
+                        data: dataTotals,
+                        borderColor: '#4F46E5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

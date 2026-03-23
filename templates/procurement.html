@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Procurement Management{% endblock %}
+{% block page_title %}Procurement Management{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+
+    <!-- Purchase Orders List -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Purchase Orders</h2>
+            <button class="btn btn-primary" onclick="document.getElementById('createPoModal').classList.remove('hidden')">+ Create PO</button>
+        </div>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Supplier</th>
+                        <th>Total Cost</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in pur_orders %}
+                    <tr>
+                        <td>#PO-{{ "%04d"|format(po.id) }}</td>
+                        <td>{{ po.suppliers.name if po.suppliers else 'Unknown' }}</td>
+                        <td>₹{{ "%.2f"|format(po.total_cost) }}</td>
+                        <td>
+                            {% if po.status == 'Pending' %}
+                                <span class="badge badge-warning">Pending</span>
+                            {% elif po.status == 'Completed' %}
+                                <span class="badge badge-success">Completed</span>
+                            {% else %}
+                                <span class="badge badge-danger">{{ po.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ po.created_at[:10] }}</td>
+                        <td>
+                            {% if po.status == 'Pending' %}
+                            <button class="btn btn-secondary btn-sm" onclick="receivePO({{ po.id }})">Receive Items</button>
+                            {% else %}
+                            <span class="text-muted" style="font-size: 0.8rem;">Received</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem;">No purchase orders found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Suppliers List -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Suppliers</h2>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('addSupplierModal').classList.remove('hidden')">+ Add Supplier</button>
+        </div>
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+            <table class="table">
+                <tbody>
+                    {% for supplier in suppliers %}
+                    <tr>
+                        <td>
+                            <strong style="display: block;">{{ supplier.name }}</strong>
+                            <small class="text-muted">{{ supplier.contact_email or 'No email' }}</small>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td style="text-align: center; padding: 2rem;">No suppliers found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Supplier Modal -->
+<div id="addSupplierModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 400px;">
+        <div class="card-header">
+            <h3 class="card-title">Add Supplier</h3>
+            <button class="btn btn-secondary" onclick="document.getElementById('addSupplierModal').classList.add('hidden')" style="border: none;">✕</button>
+        </div>
+        <form id="addSupplierForm">
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-control" id="supName" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="supEmail">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" class="form-control" id="supPhone">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <textarea class="form-control" id="supAddress"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="saveSupBtn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create PO Modal -->
+<div id="createPoModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+        <div class="card-header">
+            <h3 class="card-title">Create Purchase Order</h3>
+            <button class="btn btn-secondary" onclick="document.getElementById('createPoModal').classList.add('hidden')" style="border: none;">✕</button>
+        </div>
+        <form id="createPoForm">
+            <div class="form-group">
+                <label class="form-label">Supplier</label>
+                <select class="form-control" id="poSupplier" required>
+                    <option value="" disabled selected>Select Supplier</option>
+                    {% for sup in suppliers %}
+                        <option value="{{ sup.id }}">{{ sup.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
+            
+            <div id="poItemsContainer">
+                <div class="po-item-row" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <select class="form-control po-product" style="flex: 2;" required>
+                        <option value="" disabled selected>Select Product</option>
+                        {% for prod in products %}
+                            <option value="{{ prod.id }}" data-cost="{{ prod.cost }}">{{ prod.name }} (Cost: ₹{{ prod.cost }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" class="form-control po-qty" placeholder="Qty" min="1" style="flex: 1;" required>
+                    <input type="number" step="0.01" class="form-control po-cost" placeholder="Unit Cost" style="flex: 1;" required>
+                </div>
+            </div>
+            
+            <button type="button" class="btn btn-secondary btn-sm mb-3" onclick="addPoRow()">+ Add Item</button>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('createPoModal').classList.add('hidden')">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="savePoBtn">Create PO</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    // Supplier Add
+    document.getElementById('addSupplierForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveSupBtn');
+        btn.disabled = true;
+
+        const data = {
+            name: document.getElementById('supName').value,
+            email: document.getElementById('supEmail').value,
+            phone: document.getElementById('supPhone').value,
+            address: document.getElementById('supAddress').value
+        };
+
+        try {
+            const res = await fetch('/procurement/add_supplier', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (res.ok && result.success) window.location.reload();
+            else alert(result.error || 'Failed to add');
+        } catch(err) {
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // Handle PO Items dynamic rows
+    function addPoRow() {
+        const container = document.getElementById('poItemsContainer');
+        const row = document.querySelector('.po-item-row').cloneNode(true);
+        row.querySelector('.po-qty').value = '';
+        row.querySelector('.po-cost').value = '';
+        row.querySelector('.po-product').selectedIndex = 0;
+        
+        // Add remove button
+        const rmBtn = document.createElement('button');
+        rmBtn.className = 'btn btn-danger btn-sm';
+        rmBtn.innerText = 'X';
+        rmBtn.type = 'button';
+        rmBtn.onclick = function() { container.removeChild(row); };
+        row.appendChild(rmBtn);
+
+        container.appendChild(row);
+    }
+
+    // Auto-fill cost when product selected
+    document.getElementById('poItemsContainer').addEventListener('change', (e) => {
+        if (e.target.classList.contains('po-product')) {
+            const cost = e.target.options[e.target.selectedIndex].getAttribute('data-cost');
+            const row = e.target.closest('.po-item-row');
+            row.querySelector('.po-cost').value = cost;
+        }
+    });
+
+    // Save PO
+    document.getElementById('createPoForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('savePoBtn');
+        btn.disabled = true;
+
+        const supplier_id = document.getElementById('poSupplier').value;
+        const rows = document.querySelectorAll('.po-item-row');
+        const items = [];
+
+        rows.forEach(row => {
+            const pId = row.querySelector('.po-product').value;
+            const qty = row.querySelector('.po-qty').value;
+            const cost = row.querySelector('.po-cost').value;
+            if(pId && qty && cost) {
+                items.push({ product_id: pId, quantity: qty, unit_cost: cost });
+            }
+        });
+
+        if (items.length === 0) {
+            alert('Add at least one item');
+            btn.disabled = false;
+            return;
+        }
+
+        try {
+            const res = await fetch('/procurement/create_po', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ supplier_id, items })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) window.location.reload();
+            else alert(result.error || 'Failed to create PO');
+        } catch(err) {
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // Receive PO
+    async function receivePO(po_id) {
+        if(!confirm('Mark this PO as received and increment inventory?')) return;
+        
+        try {
+            const res = await fetch(`/procurement/receive_po/${po_id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                alert('Inventory updated successfully!');
+                window.location.reload();
+            }
+            else alert(result.error || 'Failed to receive');
+        } catch(err) {
+            console.error(err);
+            alert('Error');
+        }
+    }
+</script>
+{% endblock %}
