@@ -100,12 +100,18 @@ def dashboard():
             
             low_stock_res = supabase.table('inventory').select('*, products(name)').lte('stock_level', 10).execute() # Uses default 10 threshold for demo
             stats['low_stock'] = len(low_stock_res.data)
-            alerts = [{"name": r['products']['name'], "stock_level": r['stock_level']} for r in low_stock_res.data if 'products' in r]
+            
+            # Safely fetch product names safely avoiding NoneType subscription errors
+            for r in low_stock_res.data:
+                prod_name = r.get('products', {}).get('name') if isinstance(r.get('products'), dict) else 'Unknown Product'
+                alerts.append({"name": prod_name, "stock_level": r['stock_level']})
             
             po_res = supabase.table('purchase_orders').select('id').eq('status', 'Pending').execute()
             stats['pending_pos'] = len(po_res.data)
         except Exception as e:
-            print("Dashboard stat load error:", e)
+            print("Dashboard stat load error:", str(e))
+            # Inject the exact python error into the web UI so the user isn't left guessing with 0s!
+            alerts.append({"name": "SYSTEM ERROR", "stock_level": str(e)})
 
     return render_template('dashboard.html', stats=stats, alerts=alerts, sales_chart_data=sales_chart_data)
 

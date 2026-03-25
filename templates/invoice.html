@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice #SALE-{{ "%04d"|format(sale.id) }}</title>
+    <style>
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #f3f4f6; margin: 0; padding: 2rem; display: flex; justify-content: center; }
+        .invoice-box {
+            max-width: 800px; width: 100%; background: #fff; padding: 4rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 8px; box-sizing: border-box;
+        }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e5e7eb; padding-bottom: 2rem; margin-bottom: 2.5rem; }
+        .header h1 { margin: 0; color: #111827; font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; }
+        .header .store-name { color: #6b7280; font-size: 1rem; margin-top: 0.25rem; font-weight: 500; }
+        .header-meta { text-align: right; color: #4b5563; font-size: 0.95rem; line-height: 1.6; }
+        .meta-label { color: #9ca3af; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-right: 0.5rem; }
+        
+        .bill-to { margin-bottom: 3rem; display: flex; justify-content: space-between; }
+        .bill-block strong { color: #9ca3af; display: block; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; }
+        .bill-block .value { color: #111827; font-weight: 500; font-size: 1.1rem; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 3rem; }
+        table th, table td { padding: 1.25rem 1rem; text-align: left; }
+        table th { background: #f9fafb; color: #4b5563; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; }
+        table td { border-bottom: 1px solid #f3f4f6; color: #111827; }
+        table tbody tr:last-child td { border-bottom: 2px solid #e5e7eb; }
+        
+        .totals { display: flex; justify-content: flex-end; }
+        .total-box { background: #f9fafb; padding: 1.5rem 2rem; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; min-width: 250px; }
+        .total-label { color: #6b7280; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .total-amount { font-size: 1.75rem; font-weight: 800; color: #111827; }
+        
+        .actions { text-align: center; margin-top: 4rem; display: flex; gap: 1rem; justify-content: center; }
+        .btn { padding: 0.875rem 1.75rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; text-decoration: none; font-size: 1rem; transition: background 0.2s; }
+        .btn-print { background: #3b82f6; color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3); }
+        .btn-print:hover { background: #2563eb; }
+        .btn-close { background: #e5e7eb; color: #374151; }
+        .btn-close:hover { background: #d1d5db; }
+        
+        @media print {
+            body { background: white; padding: 0; }
+            .invoice-box { box-shadow: none; padding: 0; max-width: 100%; }
+            .actions { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-box">
+        <div class="header">
+            <div>
+                <h1>INVOICE</h1>
+                <div class="store-name">Retail Management System</div>
+            </div>
+            <div class="header-meta">
+                <div><span class="meta-label">Invoice No.</span> <span style="font-weight: 600; color: #111827;">#SALE-{{ "%04d"|format(sale.id) }}</span></div>
+                <div style="margin-top: 0.5rem;"><span class="meta-label">Date Issued</span> {{ sale.created_at[:16].replace('T', ' ') }}</div>
+            </div>
+        </div>
+        
+        <div class="bill-to">
+            <div class="bill-block">
+                <strong>Billed To</strong>
+                <div class="value">Walk-in Customer</div>
+            </div>
+            <div class="bill-block" style="text-align: right;">
+                <strong>Payment Method</strong>
+                <div class="value">Point of Sale (POS)</div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="padding-left: 0;">Description</th>
+                    <th style="text-align: right;">Qty</th>
+                    <th style="text-align: right;">Unit Price</th>
+                    <th style="text-align: right; padding-right: 0;">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in sale.sale_items %}
+                <tr>
+                    <td style="padding-left: 0; font-weight: 500;">{{ item.products.name }}</td>
+                    <td style="text-align: right; color: #6b7280;">{{ item.quantity }}</td>
+                    <td style="text-align: right; color: #6b7280;">₹{{ "%.2f"|format(item.unit_price) }}</td>
+                    <td style="text-align: right; font-weight: 600; padding-right: 0;">₹{{ "%.2f"|format(item.quantity * item.unit_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <div class="total-box">
+                <span class="total-label">Grand Total</span> 
+                <span class="total-amount">₹{{ "%.2f"|format(sale.total_amount) }}</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button onclick="window.close()" class="btn btn-close">Back to POS</button>
+            <button onclick="window.print()" class="btn btn-print">🖨️ Print PDF</button>
+        </div>
+    </div>
+</body>
+</html>

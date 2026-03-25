@@ -55,8 +55,8 @@
 {% block extra_js %}
 <script>
     function printInvoice(saleId) {
-        // Placeholder for PDF generation
-        alert(`Exporting invoice for Sale ID ${saleId} as PDF... \n(This feature can be integrated with a library like html2pdf.js)`);
+        // Open the elegantly formatted printable PDF template in a new browser tab.
+        window.open('/sales/invoice/' + saleId, '_blank');
     }
 </script>
 {% endblock %}

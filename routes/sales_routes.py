@@ -107,3 +107,19 @@ def export_csv():
         headers={"Content-disposition": "attachment; filename=sales_export.csv"}
     )
 
+@sales_bp.route('/invoice/<int:sale_id>')
+def invoice(sale_id):
+    if not supabase:
+        return "Database error", 500
+    try:
+        # Fetch the entire exact sale record including the joined item line items
+        res = supabase.table('sales').select("*, sale_items(*, products(name))").eq('id', sale_id).execute()
+        if not res.data:
+            return "Invoice not found", 404
+            
+        sale_data = res.data[0]
+        return render_template('invoice.html', sale=sale_data)
+        
+    except Exception as e:
+        return str(e), 500
+

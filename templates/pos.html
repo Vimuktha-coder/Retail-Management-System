@@ -172,10 +172,14 @@
             const result = await res.json();
             
             if (res.ok && result.success) {
-                alert(`Checkout successful! Sale ID: ${result.sale_id}`);
+                // Show payment successful and ask to print invoice
+                if (confirm(`Payment successful! Sale ID: ${result.sale_id}\n\nWould you like to view and print the invoice now?`)) {
+                    window.open('/sales/invoice/' + result.sale_id, '_blank');
+                }
+                
+                // Clear the current active cart to serve the next customer instantly
                 cart = [];
                 renderCart();
-                // Optionally refresh to update inventory logic visually
                 window.location.reload(); 
             } else {
                 alert(result.error || 'Checkout failed');
